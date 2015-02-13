@@ -213,7 +213,7 @@ static void phHal4Nfc_CloseComplete(
                         Hal4Ctxt->psTrcvCtxtInfo->sLowerRecvData.buffer
                         );
             }
-            if((NULL == Hal4Ctxt->sTgtConnectInfo.psConnectedDevice)
+            if((NULL == Hal4Ctxt->sTgtConnectInfo.psConnectedDevice) 
                 && (NULL != Hal4Ctxt->psTrcvCtxtInfo->psUpperSendData))
             {
                 phOsalNfc_FreeMemory(Hal4Ctxt->psTrcvCtxtInfo->psUpperSendData);
@@ -307,18 +307,34 @@ phHal4Nfc_Configure_Layers(
 #include <dlfcn.h>
 
 #define FW_PATH "/vendor/firmware/libpn544_fw.so"
-#define FW_PATH_2 "/system/lib/libpn544_fw.so"
+#define FW_PATH_C2 "/vendor/firmware/libpn544_fw_c2.so"
+#define FW_PATH_C3 "/vendor/firmware/libpn544_fw_c3.so"
+
+#define FW_TYPE_C2 167
+#define FW_TYPE_C3 177
+
 const unsigned char *nxp_nfc_full_version = NULL;
 const unsigned char *nxp_nfc_fw = NULL;
 
-int dlopen_firmware() {
+int dlopen_firmware(int fw_type) {
     void *p;
 
     void *handle = dlopen(FW_PATH, RTLD_NOW);
     if (handle == NULL) {
-        handle = dlopen(FW_PATH_2, RTLD_NOW);
-        if (handle == NULL) {
-            ALOGE("Could not open %s or %s", FW_PATH, FW_PATH_2);
+        ALOGE("Could not open %s", FW_PATH);
+        if (fw_type == FW_TYPE_C2) {
+            handle = dlopen(FW_PATH_C2, RTLD_NOW);
+            if (handle == NULL) {
+                ALOGE("Could not open %s", FW_PATH_C2);
+                return -1;
+            }
+        } else if (fw_type == FW_TYPE_C3) {
+            handle = dlopen(FW_PATH_C3, RTLD_NOW);
+            if (handle == NULL) {
+                ALOGE("Could not open %s", FW_PATH_C3);
+                return -1;
+            }
+        } else {
             return -1;
         }
     }
@@ -374,11 +390,7 @@ NFCSTATUS phHal4Nfc_Open(
         openRetVal =  PHNFCSTVAL(CID_NFC_HAL ,NFCSTATUS_ALREADY_INITIALISED);
     }
     else/*Do an initialization*/
-    {
-#ifdef ANDROID
-        dlopen_firmware();
-#endif
-
+    { 
         /*If hal4 ctxt in Hwreference is NULL create a new context*/
         if(NULL == ((phHal_sHwReference_t *)psHwReference)->hal_context)
         {
@@ -434,7 +446,7 @@ NFCSTATUS phHal4Nfc_Open(
                 /*Hci Init did not succeed.free Resources and return*/
                 if( (openRetVal != NFCSTATUS_SUCCESS)
                             && (PHNFCSTATUS (openRetVal) != NFCSTATUS_PENDING) )
-                {
+                {                    
                     phOsalNfc_FreeMemory(Hal4Ctxt->pHal4Nfc_LayerCfg);
                     phOsalNfc_FreeMemory(Hal4Ctxt);
                     Hal4Ctxt = NULL;
@@ -482,7 +494,7 @@ NFCSTATUS phHal4Nfc_Ioctl(
         if(NFC_FW_DOWNLOAD_CHECK == IoctlCode)
         {
             RetStatus = phDnldNfc_Run_Check(
-                psHwReference
+                psHwReference                       
                 );
         }
         else
@@ -493,7 +505,7 @@ NFCSTATUS phHal4Nfc_Ioctl(
             Hal4Ctxt = (phHal4Nfc_Hal4Ctxt_t *)
                 phOsalNfc_GetMemory((uint32_t)sizeof(
                                                 phHal4Nfc_Hal4Ctxt_t)
-                                                );
+                                                );      
             if(NULL == Hal4Ctxt)
             {
                 RetStatus = PHNFCSTVAL(CID_NFC_HAL,
@@ -501,15 +513,15 @@ NFCSTATUS phHal4Nfc_Ioctl(
             }
             else
             {
-                ((phHal_sHwReference_t *)psHwReference)->hal_context
+                ((phHal_sHwReference_t *)psHwReference)->hal_context 
                     = Hal4Ctxt;
                 (void)memset((void *)Hal4Ctxt,
                                  0,
-                                   ((uint32_t)sizeof(phHal4Nfc_Hal4Ctxt_t)));
-                Hal4Ctxt->sUpperLayerInfo.psUpperLayerCtxt = pContext;
+                                   ((uint32_t)sizeof(phHal4Nfc_Hal4Ctxt_t)));               
+                Hal4Ctxt->sUpperLayerInfo.psUpperLayerCtxt = pContext;                                              
                 Hal4Ctxt->sUpperLayerInfo.pUpperIoctlCb
                     = pIoctlCallback;/*Register upper layer callback*/
-                Hal4Ctxt->sUpperLayerInfo.pIoctlOutParam = pOutParam;
+                Hal4Ctxt->sUpperLayerInfo.pIoctlOutParam = pOutParam;   
                 /*Upgrade the firmware*/
                 RetStatus = phDnldNfc_Upgrade (
                         psHwReference,
@@ -528,7 +540,7 @@ NFCSTATUS phHal4Nfc_Ioctl(
         else
 #endif/*NFC_FW_DOWNLOAD*/
         {
-            RetStatus = PHNFCSTVAL(CID_NFC_HAL ,NFCSTATUS_NOT_INITIALISED);
+            RetStatus = PHNFCSTVAL(CID_NFC_HAL ,NFCSTATUS_NOT_INITIALISED);     
         }
     }
     else/*Status is Initialised*/
@@ -592,7 +604,7 @@ NFCSTATUS phHal4Nfc_Ioctl(
                     );
             }
             break;
-        /*Used to Read Memory/Registers .3 bytes of Array passed form the
+        /*Used to Read Memory/Registers .3 bytes of Array passed form the 
           address to read from in MSB first format.*/
         case NFC_MEM_READ:
             {
@@ -618,8 +630,8 @@ NFCSTATUS phHal4Nfc_Ioctl(
                 }
             }
             break;
-        /*Used to Write Memory/Registers .First 3 bytes of Array passed in MSB
-          first format form the address to write to.The 4th Byte is the 8 bit
+        /*Used to Write Memory/Registers .First 3 bytes of Array passed in MSB 
+          first format form the address to write to.The 4th Byte is the 8 bit 
           value to be written to the address*/
         case NFC_MEM_WRITE:
             {
@@ -628,7 +640,7 @@ NFCSTATUS phHal4Nfc_Ioctl(
                 {
                     for( ind = 0; ind < 3; ind++ )
                     {
-                        config_type = ((config_type << BYTE_SIZE )
+                        config_type = ((config_type << BYTE_SIZE ) 
                                         | (pInParam->buffer[ind] ));
                     }
                     RetStatus = phHciNfc_System_Configure (
@@ -640,7 +652,7 @@ NFCSTATUS phHal4Nfc_Ioctl(
                 }
                 else
                 {
-                    RetStatus = PHNFCSTVAL(CID_NFC_HAL ,
+                    RetStatus = PHNFCSTVAL(CID_NFC_HAL , 
                         NFCSTATUS_INVALID_PARAMETER);
                 }
             }
@@ -663,7 +675,7 @@ NFCSTATUS phHal4Nfc_Ioctl(
 
 /**
  *  The close function called by the upper layer when HAL4 is to be closed
- *  (shutdown).
+ *  (shutdown).  
  */
 NFCSTATUS phHal4Nfc_Close(
                           phHal_sHwReference_t *psHwReference,
@@ -681,10 +693,10 @@ NFCSTATUS phHal4Nfc_Close(
     }
     else if((NULL == psHwReference->hal_context)
                         || (((phHal4Nfc_Hal4Ctxt_t *)
-                                psHwReference->hal_context)->Hal4CurrentState
+                                psHwReference->hal_context)->Hal4CurrentState 
                                                < eHal4StateSelfTestMode)
                         || (((phHal4Nfc_Hal4Ctxt_t *)
-                                psHwReference->hal_context)->Hal4NextState
+                                psHwReference->hal_context)->Hal4NextState 
                                                == eHal4StateClosed))
     {
         /*return already closed*/
@@ -784,7 +796,7 @@ void phHal4Nfc_Hal4Reset(
                 phOsalNfc_FreeMemory(Hal4Ctxt->psTrcvCtxtInfo
                                                     ->sLowerRecvData.buffer);
             }
-            if((NULL == Hal4Ctxt->sTgtConnectInfo.psConnectedDevice)
+            if((NULL == Hal4Ctxt->sTgtConnectInfo.psConnectedDevice) 
                 && (NULL != Hal4Ctxt->psTrcvCtxtInfo->psUpperSendData))
             {
                 phOsalNfc_FreeMemory(Hal4Ctxt->psTrcvCtxtInfo->psUpperSendData);
@@ -834,10 +846,10 @@ NFCSTATUS phHal4Nfc_GetDeviceCapabilities(
     /*Check for Initialized state*/
     else if((NULL == psHwReference->hal_context)
                         || (((phHal4Nfc_Hal4Ctxt_t *)
-                                psHwReference->hal_context)->Hal4CurrentState
+                                psHwReference->hal_context)->Hal4CurrentState 
                                                < eHal4StateOpenAndReady)
                         || (((phHal4Nfc_Hal4Ctxt_t *)
-                                psHwReference->hal_context)->Hal4NextState
+                                psHwReference->hal_context)->Hal4NextState 
                                                == eHal4StateClosed))
     {
         retstatus = PHNFCSTVAL(CID_NFC_HAL ,NFCSTATUS_NOT_INITIALISED);
@@ -903,7 +915,7 @@ static void phHal4Nfc_LowerNotificationHandler(
                 gpphHal4Nfc_Hwref = (phHal_sHwReference_t *)pHwRef;
             }
         }
-        else/*No Copy of Hw ref in HAL.Copy both Hwref and Hal context passed
+        else/*No Copy of Hw ref in HAL.Copy both Hwref and Hal context passed 
              by Hci*/
         {
             Hal4Ctxt = (phHal4Nfc_Hal4Ctxt_t *)pContext;
@@ -993,22 +1005,6 @@ static void phHal4Nfc_LowerNotificationHandler(
                     phHal4Nfc_SendCompleteHandler(Hal4Ctxt,pInfo);
                 }
                 break;
-#if defined (HOST_EMULATION)
-            case NFC_NOTIFY_SEND_CE_A_COMPLETED   :
-                PHDBG_INFO("Hal4:CE A Send Callback");
-                if(NULL != Hal4Ctxt->psTrcvCtxtInfo)
-                {
-                    phHal4Nfc_CE_A_SendCompleteHandler(Hal4Ctxt,pInfo);
-                }
-                break;
-            case NFC_NOTIFY_SEND_CE_B_COMPLETED   :
-                PHDBG_INFO("Hal4:CE B Send Callback");
-                if(NULL != Hal4Ctxt->psTrcvCtxtInfo)
-                {
-                    phHal4Nfc_CE_B_SendCompleteHandler(Hal4Ctxt,pInfo);
-                }
-                break;
-#endif //HOST_EMULATION
             case NFC_NOTIFY_TRANSACTION  :
                 phHal4Nfc_HandleEmulationEvent(Hal4Ctxt,pInfo);
                 break;
@@ -1032,46 +1028,6 @@ static void phHal4Nfc_LowerNotificationHandler(
                 }
                 phHal4Nfc_RecvCompleteHandler(Hal4Ctxt,pInfo);
                 break;
-#if defined (HOST_EMULATION)
-            case NFC_NOTIFY_CE_A_RECV_EVENT:
-                PHDBG_INFO("Hal4:Receive Event");
-                if(NULL != Hal4Ctxt->psTrcvCtxtInfo)
-                {
-                    if(Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                        != PH_OSALNFC_INVALID_TIMER_ID)
-                    {
-                        phOsalNfc_Timer_Stop(
-                            Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                            );
-                        phOsalNfc_Timer_Delete(
-                            Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                            );
-                        Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                            = PH_OSALNFC_INVALID_TIMER_ID;
-                    }
-                }
-                phHal4Nfc_CE_A_RecvCompleteHandler(Hal4Ctxt,pInfo);
-                break;
-            case NFC_NOTIFY_CE_B_RECV_EVENT:
-                PHDBG_INFO("Hal4:Receive Event");
-                if(NULL != Hal4Ctxt->psTrcvCtxtInfo)
-                {
-                    if(Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                        != PH_OSALNFC_INVALID_TIMER_ID)
-                    {
-                        phOsalNfc_Timer_Stop(
-                            Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                            );
-                        phOsalNfc_Timer_Delete(
-                            Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                            );
-                        Hal4Ctxt->psTrcvCtxtInfo->TransactionTimerId
-                            = PH_OSALNFC_INVALID_TIMER_ID;
-                    }
-                }
-                phHal4Nfc_CE_B_RecvCompleteHandler(Hal4Ctxt,pInfo);
-                break;
-#endif  //HOST_EMULATION
             case NFC_NOTIFY_TARGET_PRESENT:
                 phHal4Nfc_PresenceChkComplete(Hal4Ctxt,pInfo);
                 break;
@@ -1084,7 +1040,7 @@ static void phHal4Nfc_LowerNotificationHandler(
                                             = Hal4Ctxt->sUpperLayerInfo.psUpperLayerCtxt;
                 static phHal4Nfc_NotificationInfo_t uNotificationInfo;
                 if(NULL != Hal4Ctxt->sUpperLayerInfo.pDefaultEventHandler)
-                {
+                {                    
                     Hal4Ctxt->Hal4NextState = eHal4StateInvalid;
                     Hal4Ctxt->sUpperLayerInfo.pDefaultEventHandler(
                         Hal4Ctxt->sUpperLayerInfo.DefaultListenerCtxt,
@@ -1123,8 +1079,8 @@ static void phHal4Nfc_LowerNotificationHandler(
                 break;
             }
             case NFC_NOTIFY_CONNECT_FAILED:
-            case NFC_NOTIFY_DISCONNECT_FAILED:
-            /*Generic Error type received from Hci.Handle the error based on
+            case NFC_NOTIFY_DISCONNECT_FAILED:   
+            /*Generic Error type received from Hci.Handle the error based on 
               Hal4 next state and which past callback was Pending*/
             case NFC_NOTIFY_ERROR:
             {
@@ -1218,7 +1174,7 @@ static void phHal4Nfc_HandleEvent(
                         break;
                     default:
                         break;
-                }
+                }           
             }
         }
             break;
@@ -1249,7 +1205,7 @@ static void phHal4Nfc_HandleEvent(
         case NFC_EVT_PROTECTED:
         {
 #ifdef IGNORE_EVT_PROTECTED
-            /*Ignore_Event_Protected is set to false during Field Off event and
+            /*Ignore_Event_Protected is set to false during Field Off event and 
               Set protection Configuration.After a NFC_EVT_PROTECTED is received
               once all subsequent NFC_EVT_PROTECTED events are ignored*/
             if(FALSE == Hal4Ctxt->Ignore_Event_Protected)
@@ -1259,7 +1215,7 @@ static void phHal4Nfc_HandleEvent(
                 sNotificationInfo.info = psEventInfo;
                 sNotificationInfo.status = NFCSTATUS_SUCCESS;
                 sNotificationInfo.type = NFC_EVENT_NOTIFICATION;
-                pInfo = &sNotificationInfo;
+                pInfo = &sNotificationInfo;            
                 phHal4Nfc_HandleEmulationEvent(Hal4Ctxt,pInfo);
 #ifdef IGNORE_EVT_PROTECTED
             }
@@ -1297,20 +1253,20 @@ static void phHal4Nfc_HandleEvent(
             }
             if(NULL != Hal4Ctxt->psADDCtxtInfo)
             {
-                Hal4Ctxt->psADDCtxtInfo->sADDCfg.PollDevInfo.PollEnabled
+                Hal4Ctxt->psADDCtxtInfo->sADDCfg.PollDevInfo.PollEnabled 
                                 |= psEventInfo->eventInfo.rd_phases;
-                /*Configure HCI Discovery*/
+                /*Configure HCI Discovery*/ 
                 RetStatus = phHciNfc_Config_Discovery(
                     (void *)Hal4Ctxt->psHciHandle,
                     gpphHal4Nfc_Hwref,
                     &(Hal4Ctxt->psADDCtxtInfo->sADDCfg)
-                    );
+                    ); 
                 Hal4Ctxt->Hal4NextState = (NFCSTATUS_PENDING == RetStatus?
                                                 eHal4StateConfiguring:
                                                 Hal4Ctxt->Hal4NextState);
             }
             break;
-        }
+        }   
         /*Call Default Event handler for these Events*/
         case NFC_INFO_TXLDO_OVERCUR:
         case NFC_INFO_MEM_VIOLATION:
@@ -1339,7 +1295,7 @@ static void phHal4Nfc_HandleEvent(
         case NFC_EVT_TRANSACTION:
         case NFC_EVT_START_OF_TRANSACTION:
         case NFC_EVT_END_OF_TRANSACTION:
-        case NFC_EVT_CONNECTIVITY:
+        case NFC_EVT_CONNECTIVITY:   
         case NFC_EVT_OPERATION_ENDED:
         case NFC_EVT_MIFARE_ACCESS:
         case NFC_EVT_APDU_RECEIVED:
@@ -1357,7 +1313,7 @@ static void phHal4Nfc_HandleEvent(
             sNotificationInfo.type = NFC_EVENT_NOTIFICATION;
             pInfo = &sNotificationInfo;
             PHDBG_INFO("Hal4:Event Field ON\n");
-            phHal4Nfc_HandleEmulationEvent(Hal4Ctxt,pInfo);
+            phHal4Nfc_HandleEmulationEvent(Hal4Ctxt,pInfo);        
             break;
         case NFC_EVT_FIELD_OFF:
     #ifdef IGNORE_EVT_PROTECTED
@@ -1368,7 +1324,7 @@ static void phHal4Nfc_HandleEvent(
             sNotificationInfo.type = NFC_EVENT_NOTIFICATION;
             pInfo = &sNotificationInfo;
             PHDBG_INFO("Hal4:Event Field OFF\n");
-            phHal4Nfc_HandleEmulationEvent(Hal4Ctxt,pInfo);
+            phHal4Nfc_HandleEmulationEvent(Hal4Ctxt,pInfo); 
             break;
         default:
             PHDBG_WARNING("Hal4:Unhandled Event type received");
@@ -1432,14 +1388,14 @@ static void phHal4Nfc_IoctlComplete(
 {
     /*Copy status*/
     NFCSTATUS status = (((phNfc_sCompletionInfo_t *)pInfo)->status);
-    pphHal4Nfc_IoctlCallback_t pUpper_IoctlCb
+    pphHal4Nfc_IoctlCallback_t pUpper_IoctlCb 
                                     = Hal4Ctxt->sUpperLayerInfo.pUpperIoctlCb;
 #ifdef MERGE_SAK_SW2
-    pphHal4Nfc_GenCallback_t pConfigCallback =
+    pphHal4Nfc_GenCallback_t pConfigCallback = 
         Hal4Ctxt->sUpperLayerInfo.pConfigCallback;
 #endif/*#ifdef MERGE_SAK_SW2*/
     void  *pUpper_Context = Hal4Ctxt->sUpperLayerInfo.psUpperLayerCtxt;
-    Hal4Ctxt->sUpperLayerInfo.pUpperIoctlCb = NULL;
+    Hal4Ctxt->sUpperLayerInfo.pUpperIoctlCb = NULL;    
 #ifdef MERGE_SAK_SW1 /*Software workaround 1*/
     if(eHal4StateOpenAndReady == Hal4Ctxt->Hal4NextState)
     {
@@ -1451,7 +1407,7 @@ static void phHal4Nfc_IoctlComplete(
             NFCSTATUS_SUCCESS
             );
     }
-#endif/*#ifdef MERGE_SAK_SW1*/
+#endif/*#ifdef MERGE_SAK_SW1*/    
 #ifdef MERGE_SAK_SW2 /*Software workaround 2*/
     else if((eHal4StateConfiguring == Hal4Ctxt->Hal4NextState)
             &&(NULL != pConfigCallback))
@@ -1470,7 +1426,7 @@ static void phHal4Nfc_IoctlComplete(
             || (NFC_GPIO_READ == Hal4Ctxt->Ioctl_Type)
             )
         {
-            Hal4Ctxt->sUpperLayerInfo.pIoctlOutParam->length
+            Hal4Ctxt->sUpperLayerInfo.pIoctlOutParam->length 
                 = sizeof (uint8_t);
         }
          /*Call registered Ioctl callback*/
